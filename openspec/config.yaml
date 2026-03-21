@@ -1,0 +1,47 @@
+schema: spec-driven
+
+context: |
+  Project: Modular AI Image Generation Web UI
+  Domain: AI Image Generation (Text-to-Image / Multi-Provider)
+  
+  Core Philosophy:
+  This system acts as a "Multi-Provider API Console". Its primary responsibility is routing, configuration management, and payload forwarding, NOT semantic abstraction. It routes user intent to various AI backends with minimal system-level interference.
+  
+  Architectural Boundaries & Layers:
+  1. Presentation Layer (UI): Pure presentation and user input collection. Strictly ignorant of backend API specifics.
+  2. Orchestration Layer (Service): The absolute, bypass-proof single entry point for all generation tasks. Orchestrates the flow but contains zero API-specific mapping logic.
+  3. Integration Layer (Providers): Encapsulates all external API interactions, authentication, and endpoint-specific payload formatting.
+  
+  Data Contracts & State:
+  - Cross-layer communication must strictly utilize strongly typed data structures (Standard Request/Response Data Objects).
+  - Raw dynamic structures (like bare dicts) are strictly prohibited for primary cross-layer data exchange, except for explicitly designated "escape hatch" fields intended for provider-specific advanced parameters.
+  
+  Anti-Goals (Strictly Forbidden):
+  - NO global prompt processing pipelines or system-level prompt builders.
+  - NO unified semantic translation (e.g., attempting to map parameters like "style_strength" uniformly across fundamentally different AI models).
+  - NO independent parameter mapping modules or directories outside of the Integration Layer's encapsulation.
+
+rules:
+  proposal:
+    - "Clearly define logical system boundaries and layer responsibilities."
+    - "Detail the unidirectional data flow from Presentation -> Orchestration -> Integration."
+    - "Specify extensibility mechanisms that strictly adhere to the Open-Closed Principle."
+    - "Explicitly list architectural anti-goals to prevent over-engineering and scope creep."
+
+  design:
+    - "Enforce strict physical and logical separation of concerns via modular project structure."
+    - "Ensure adding a new integration requires ZERO modifications to the Presentation or Orchestration layers."
+    - "Mandate a completely config-driven architecture: externalize all endpoints, credentials, and active models to declarative configuration."
+    - "Eliminate all hardcoded environment-specific or integration-specific values in the core codebase."
+
+  specs:
+    - "All integrations must implement and adhere to a single, unified abstract interface."
+    - "The Presentation layer is strictly prohibited from instantiating, importing, or invoking integrations directly."
+    - "Payload adaptation (translating generic request objects to API-specific JSON/parameters) must occur entirely and exclusively within the specific integration's internal boundary."
+    - "User prompts must be passed through to integrations immutably, without any system-level string manipulation."
+    - "Integrations must act as error boundaries: they must catch internal/network errors and return standardized, safe result objects to the Orchestration layer."
+
+  tasks:
+    - "Implementation sequence must respect architectural dependencies: Foundations/Config -> Interfaces -> Orchestration -> Presentation."
+    - "Strictly isolate component rendering logic from business and routing logic."
+    - "Implement robust dependency injection, factory, or registry patterns for dynamic integration management."
