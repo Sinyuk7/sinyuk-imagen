@@ -1,0 +1,62 @@
+name: agile-relay
+version: 1
+description: Lightweight iterative workflow for session-based development (Design -> Tasks -> Apply with Relay)
+
+artifacts:
+  - id: design
+    generates: design.md
+    description: Unified design document covering context, scope, and technical approach
+    template: design.md
+    instruction: |
+      Create a concise design document that explains:
+      - why this change is needed
+      - what will change
+      - how it will be implemented
+
+      Required sections:
+      - Context & Goal
+      - Scope / Changes
+      - Technical Approach
+      - Risks / Migration
+
+      Keep it practical and lightweight. Avoid splitting into separate proposal/spec/design documents unless truly necessary.
+    requires: []
+
+  - id: tasks
+    generates: tasks.md
+    description: Actionable implementation checklist and status tracker
+    template: tasks.md
+    instruction: |
+      Break down `design.md` into an actionable checklist.
+
+      Requirements:
+      - Group work under `##` headings
+      - Every task must use checkbox format: `- [ ] X.Y Task description`
+      - Order tasks by dependency and implementation flow
+      - Make tasks small enough to allow measurable per-session progress
+      - Distinguish core tasks from optional cleanup when useful
+    requires:
+      - design
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    Phase 2: Execution
+    - Read `design.md` for context
+    - Execute tasks from `tasks.md` in order
+    - Mark completed tasks as `- [x]`
+    - Keep implementation aligned with `design.md`
+
+    Phase 3: Relay (Mandatory)
+    Before ending the session — whether work is complete, partial, or blocked —
+    generate `relay.md` in the change folder.
+
+    `relay.md` must include:
+    - Completed This Session
+    - Task Status Snapshot
+    - Validation / Self-check
+    - Risks / Open Issues
+    - **Next Session Prompt**: Write a ready-to-copy instruction block that the user can paste into the NEXT chat session to perfectly resume work (e.g., "Resume implementation at task 2.3...").
+    
+    If implementation diverged from the original design, document that clearly.

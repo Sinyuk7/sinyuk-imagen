@@ -1,0 +1,33 @@
+default_provider: n1n.ai
+
+task_manager:
+  max_running_tasks: 2
+  max_pending_tasks: 20
+  task_ttl_seconds: 10800
+  running_timeout_seconds: 3600
+  cleanup_interval_seconds: 600
+
+providers:
+  - name: n1n.ai
+    type: google_compatible
+    base_url: https://hk.n1n.ai
+    api_key: ${N1N_API_KEY}
+    models:
+      "Nano Banana 2": gemini-3.1-flash-image-preview
+      "Nano Banana Pro": gemini-3-pro-image-preview
+      "Nano Banana Flash": gemini-2.5-flash-image
+    max_concurrency: 2
+    hint: "Using the provided image of [subject], please [add/remove/modify] [element] to/from the scene. Ensure the change is [description of how the change should integrate]."
+
+  - name: JiMeng
+    type: jimeng
+    base_url: https://generativelanguage.jimengapis.com
+    api_key: ${JIMENG_API_KEY}
+    models:
+      "JiMeng 2.5 Flash (Preview Image Gen)": jimeng-2.5-flash-preview-image-generation
+    max_concurrency: 1
+    hint: "Describe the image you want to generate..."
+
+ui:
+  title: "Sinyuk Imagen"
+  theme: soft
