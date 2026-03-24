@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import gradio as gr
-from gradio.blocks import Block
+import gradio as gr # pyright: ignore[reportMissingImports]
+from gradio.blocks import Block # pyright: ignore[reportMissingImports]
 
 from core.schemas import BrowserTaskState, BrowserTaskStateValue
 from ui.dashboard.contracts import DashboardUIComponents

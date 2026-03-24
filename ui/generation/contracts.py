@@ -30,7 +30,11 @@ if TYPE_CHECKING:
     from ui.generation._internal.controls import (
         ControlsPanel,
     )
-    from ui.generation._internal.handlers import GenerateHandler, ProviderHandler
+    from ui.generation._internal.handlers import (
+        FlipRatioHandler,
+        GenerateHandler,
+        ProviderHandler,
+    )
     from ui.generation._internal.output import OutputPanel
 
 ProviderExtraParams: TypeAlias = dict[str, object]
@@ -118,6 +122,21 @@ class GenerationUIComponents:
     output: "OutputPanel"
     provider_handler: "ProviderHandler"
     generate_handler: "GenerateHandler"
+    flip_ratio_handler: "FlipRatioHandler"
+
+
+@dataclass(frozen=True)
+class FlipRatioResponse:
+    """
+    Flip Ratio 切换后的 UI 响应
+
+    INTENT: 为 flip_ratio checkbox 切换时更新 aspect_ratio 下拉菜单提供具名类型
+    """
+
+    aspect_ratio_update: GradioUpdateValue
+
+    def to_output_tuple(self) -> tuple[GradioUpdateValue]:
+        return (self.aspect_ratio_update,)
 
 
 @dataclass(frozen=True)

@@ -29,6 +29,7 @@ from core.schemas import (
 from ui.dashboard.contracts import DashboardResponse
 from ui.generation.contracts import (
     DashboardHandlerPort,
+    FlipRatioResponse,
     GenerationResponse,
     ProviderExtraParams,
 )
@@ -41,6 +42,42 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DEFAULT_PROMPT_PLACEHOLDER = "Describe the image you want to generate..."
+
+
+# =============================================================================
+# Flip Ratio Utilities
+# =============================================================================
+
+
+def flip_ratio_value(ratio: str) -> str:
+    """翻转单个 ratio 值，如 '2:3' → '3:2'。
+
+    INTENT: 将宽高比字符串中的宽高互换
+    INPUT: ratio - 宽高比字符串，如 '2:3' 或 'original'
+    OUTPUT: 翻转后的字符串，如 '3:2'；'original' 保持不变
+    SIDE EFFECT: None
+    FAILURE: 格式不符时返回原值
+    """
+    if ":" not in ratio or ratio == "original":
+        return ratio
+    parts = ratio.split(":")
+    if len(parts) != 2:
+        return ratio
+    return f"{parts[1]}:{parts[0]}"
+
+
+def flip_ratio_choices(choices: list[str], should_flip: bool) -> list[str]:
+    """根据 should_flip 标志翻转整个 choices 列表。
+
+    INTENT: 批量翻转下拉菜单的所有选项
+    INPUT: choices - 选项列表, should_flip - 是否翻转
+    OUTPUT: 翻转后的选项列表（或原列表）
+    SIDE EFFECT: None
+    FAILURE: None
+    """
+    if not should_flip:
+        return choices
+    return [flip_ratio_value(c) for c in choices]
 
 
 # =============================================================================
@@ -176,10 +213,10 @@ class GenerateHandler:
         reference_image_path: str | None,
         divisible_by: int,
     ) -> TaskConfig:
+        # ratio is already flipped by UI when flip_checked is True,
+        # so we use it directly. flip_checked param kept for API compatibility.
+        _ = flip_checked  # Unused now - ratio already reflects flip state
         final_ratio = ratio
-        if flip_checked and ":" in ratio:
-            parts = ratio.split(":")
-            final_ratio = f"{parts[1]}:{parts[0]}"
 
         return TaskConfig(
             prompt=prompt_text,
@@ -229,6 +266,7 @@ class ProviderHandler:
         self,
         provider_name: str,
         current_token: str,
+        flip_checked: bool,
         state_machine: "StateMachine",
     ) -> GenerationResponse:
         """处理 Provider 切换事件。"""
@@ -258,9 +296,11 @@ class ProviderHandler:
             value=1,
         )
 
+        base_choices = ["original"] + list(provider.aspect_ratios)
+        base_value = provider.aspect_ratios[0] if provider.aspect_ratios else "1:1"
         aspect_ratio_update = gr.update(
-            choices=["original"] + list(provider.aspect_ratios),
-            value=provider.aspect_ratios[0] if provider.aspect_ratios else "1:1",
+            choices=flip_ratio_choices(base_choices, flip_checked),
+            value=flip_ratio_value(base_value) if flip_checked else base_value,
         )
 
         resolution_update = gr.update(
@@ -314,10 +354,67 @@ class ProviderHandler:
 
 
 # =============================================================================
+# Flip Ratio Handler
+# =============================================================================
+
+
+class FlipRatioHandler:
+    """Flip Ratio 切换处理器。
+
+    INTENT: 处理 flip_ratio checkbox 切换时更新 aspect_ratio 下拉菜单
+    INPUT: flip_checked 状态, 当前 ratio, provider_name
+    OUTPUT: FlipRatioResponse (aspect_ratio 下拉菜单更新)
+    SIDE EFFECT: None
+    FAILURE: 未知 provider 时抛出 ValueError
+    """
+
+    def __init__(self, ui_context: UIContext):
+        self.ui_context = ui_context
+        self._providers = list(self.ui_context.providers.values())
+        if not self._providers:
+            raise ValueError("UI context must provide at least one provider")
+        self._provider_map = {
+            provider.provider_id: provider for provider in self._providers
+        }
+
+    def handle_flip_change(
+        self,
+        flip_checked: bool,
+        current_ratio: str,
+        provider_name: str,
+    ) -> FlipRatioResponse:
+        """处理 flip_ratio checkbox 切换事件。
+
+        INTENT: 根据 flip_checked 状态更新 aspect_ratio 下拉菜单的 choices 和 value
+        INPUT: flip_checked - 是否选中, current_ratio - 当前选中值, provider_name - 当前 provider
+        OUTPUT: FlipRatioResponse 包含 aspect_ratio 下拉菜单更新
+        SIDE EFFECT: None
+        FAILURE: 未知 provider 时抛出 ValueError
+        """
+        provider = self._get_provider_context(provider_name)
+        base_choices = ["original"] + list(provider.aspect_ratios)
+        new_choices = flip_ratio_choices(base_choices, flip_checked)
+        new_value = flip_ratio_value(current_ratio)
+
+        aspect_ratio_update = gr.update(
+            choices=new_choices,
+            value=new_value,
+        )
+
+        return FlipRatioResponse(aspect_ratio_update=aspect_ratio_update)
+
+    def _get_provider_context(self, provider_name: str) -> ProviderUIContext:
+        if provider_name not in self._provider_map:
+            raise ValueError(f"Unknown provider '{provider_name}' in UI context")
+        return self._provider_map[provider_name]
+
+
+# =============================================================================
 # Exports
 # =============================================================================
 
 __all__ = [
+    "FlipRatioHandler",
     "GenerateHandler",
     "ProviderHandler",
 ]

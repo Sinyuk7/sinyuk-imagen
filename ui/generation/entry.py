@@ -12,7 +12,11 @@ from ui.generation.contracts import GenerationUIComponents, GenerationUIConfig, 
 from ui.generation._internal.advanced_params import AdvancedParamsPanel
 from ui.generation._internal.basic_params import BasicParamsPanel
 from ui.generation._internal.controls import ControlsPanel
-from ui.generation._internal.handlers import GenerateHandler, ProviderHandler
+from ui.generation._internal.handlers import (
+    FlipRatioHandler,
+    GenerateHandler,
+    ProviderHandler,
+)
 from ui.generation._internal.output import OutputPanel
 
 
@@ -37,6 +41,7 @@ def build_generation_ui(config: GenerationUIConfig) -> GenerationUIComponents:
     output = OutputPanel(show_admin_tab=config.show_admin_tab)
     provider_handler = ProviderHandler(config.ui_context)
     generate_handler = GenerateHandler(config.dashboard_handler)
+    flip_ratio_handler = FlipRatioHandler(config.ui_context)
 
     return GenerationUIComponents(
         basic_params=basic_params,
@@ -45,6 +50,7 @@ def build_generation_ui(config: GenerationUIConfig) -> GenerationUIComponents:
         output=output,
         provider_handler=provider_handler,
         generate_handler=generate_handler,
+        flip_ratio_handler=flip_ratio_handler,
     )
 
 

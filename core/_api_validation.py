@@ -67,12 +67,38 @@ def validate_image_count(
         )
 
 
+def _flip_aspect_ratio(ratio: str) -> str:
+    """Flip an aspect ratio string, e.g., '2:3' -> '3:2'."""
+    if ":" not in ratio:
+        return ratio
+    parts = ratio.split(":")
+    if len(parts) != 2:
+        return ratio
+    return f"{parts[1]}:{parts[0]}"
+
+
+def _is_aspect_ratio_supported(ratio: str, supported_ratios: tuple[str, ...] | list[str]) -> bool:
+    """Check if ratio or its flipped version is in the supported list.
+    
+    Provider configs define base ratios (e.g., '2:3'), but both the base
+    and flipped versions (e.g., '3:2') are considered valid.
+    """
+    if ratio in supported_ratios:
+        return True
+    flipped = _flip_aspect_ratio(ratio)
+    return flipped in supported_ratios
+
+
 def validate_optional_aspect_ratio(
     ui_context: UIContext,
     provider: str,
     aspect_ratio: object,
 ) -> None:
-    """Validate a provider-specific aspect ratio token when present."""
+    """Validate a provider-specific aspect ratio token when present.
+    
+    Both the configured ratio and its flipped version are accepted.
+    For example, if provider supports '2:3', then '3:2' is also valid.
+    """
     if aspect_ratio is None:
         return
     if not isinstance(aspect_ratio, str) or not aspect_ratio.strip():
@@ -80,7 +106,7 @@ def validate_optional_aspect_ratio(
     if aspect_ratio == "original":
         return
     provider_context = ui_context.get_provider(provider)
-    if aspect_ratio not in provider_context.aspect_ratios:
+    if not _is_aspect_ratio_supported(aspect_ratio, provider_context.aspect_ratios):
         raise ValueError(
             f"aspect_ratio '{aspect_ratio}' is not available for provider '{provider}'."
         )
@@ -90,7 +116,10 @@ def validate_known_aspect_ratio(
     ui_context: UIContext,
     aspect_ratio: object,
 ) -> None:
-    """Validate that the aspect ratio exists for at least one configured provider."""
+    """Validate that the aspect ratio exists for at least one configured provider.
+    
+    Both the configured ratio and its flipped version are accepted.
+    """
     if aspect_ratio is None:
         return
     if not isinstance(aspect_ratio, str) or not aspect_ratio.strip():
@@ -98,7 +127,7 @@ def validate_known_aspect_ratio(
     if aspect_ratio == "original":
         return
     for provider_context in ui_context.providers.values():
-        if aspect_ratio in provider_context.aspect_ratios:
+        if _is_aspect_ratio_supported(aspect_ratio, provider_context.aspect_ratios):
             return
     raise ValueError(f"aspect_ratio '{aspect_ratio}' is not configured for any provider.")
 

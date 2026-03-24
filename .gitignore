@@ -32,8 +32,6 @@ pyrightconfig.json
 
 
 .codemaker
-openspec/changes
-openspec/changes/
 .raven/
 .claude/
 .codex/
