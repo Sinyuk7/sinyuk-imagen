@@ -80,7 +80,6 @@ class DashboardResponse:
     """
 
     browser_state_value: BrowserTaskStateValue
-    selected_task_markdown: str
     gallery_items: list[object]
     status_text: str
     logcat_markdown: str
@@ -94,7 +93,6 @@ class DashboardResponse:
         self,
     ) -> tuple[
         BrowserTaskStateValue,
-        str,
         list[object],
         str,
         str,
@@ -106,7 +104,6 @@ class DashboardResponse:
     ]:
         return (
             self.browser_state_value,
-            self.selected_task_markdown,
             self.gallery_items,
             self.status_text,
             self.logcat_markdown,

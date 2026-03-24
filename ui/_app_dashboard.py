@@ -70,7 +70,6 @@ def bind_dashboard_events(
         ],
         outputs=[
             browser_task_state,
-            output.get_current_task(),
             output.get_gallery(),
             output.get_status_bar(),
             output.get_logcat_output(),
@@ -93,7 +92,6 @@ def bind_dashboard_events(
             inputs=[browser_task_state, session_state_machine],
             outputs=[
                 browser_task_state,
-                output.get_current_task(),
                 output.get_gallery(),
                 output.get_status_bar(),
                 output.get_logcat_output(),

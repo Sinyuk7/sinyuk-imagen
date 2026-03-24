@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import gradio as gr
-from gradio.blocks import Block
+import gradio as gr # pyright: ignore[reportMissingImports]
+from gradio.blocks import Block # pyright: ignore[reportMissingImports]
 
 import core.api as core_api
 from core.schemas import BrowserTaskState, BrowserTaskStateValue
@@ -172,7 +172,6 @@ def bind_generation_events(
         ],
         outputs=[
             browser_task_state,
-            output.get_current_task(),
             output.get_gallery(),
             output.get_status_bar(),
             output.get_logcat_output(),

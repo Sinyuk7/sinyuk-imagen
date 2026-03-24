@@ -10,7 +10,7 @@ SIDE EFFECT: None (纯数据转换)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
 from core.schemas import (
@@ -19,6 +19,15 @@ from core.schemas import (
     TaskSnapshot,
     TaskStatus,
 )
+
+STATUS_EMOJI = {
+    TaskStatus.QUEUED: "⏳",
+    TaskStatus.PREPARING: "🔧",
+    TaskStatus.RUNNING: "🔄",
+    TaskStatus.SUCCEEDED: "✅",
+    TaskStatus.FAILED: "❌",
+    TaskStatus.TIMED_OUT: "⏱️",
+}
 from ui.generation import OutputPresenter, OutputViewModel
 
 TaskChoice = Tuple[str, str]
@@ -34,7 +43,6 @@ class TaskDashboardViewModel:
     browser_state: BrowserTaskState = field(default_factory=BrowserTaskState)
     task_choices: List[TaskChoice] = field(default_factory=list)
     selected_task_id: Optional[str] = None
-    selected_task_markdown: str = "### No task selected"
     detail_view_model: OutputViewModel = field(default_factory=OutputViewModel)
     refresh_interval_seconds: Optional[float] = None
     admin_metrics_markdown: str = ""
@@ -87,9 +95,6 @@ class TaskDashboardPresenter:
             ),
             task_choices=task_choices,
             selected_task_id=selected_task_id,
-            selected_task_markdown=TaskDashboardPresenter._build_selected_task_markdown(
-                selected_snapshot
-            ),
             detail_view_model=detail_view_model,
             refresh_interval_seconds=refresh_interval,
             admin_metrics_markdown=TaskDashboardPresenter._build_admin_metrics_markdown(
@@ -128,28 +133,35 @@ class TaskDashboardPresenter:
         return OutputPresenter.build_task_pending(snapshot)
 
     @staticmethod
-    def _build_selected_task_markdown(snapshot: Optional[TaskSnapshot]) -> str:
-        if snapshot is None:
-            return "### No task selected"
-
-        lines = [
-            f"### Task `{snapshot.task_id[:8]}`",
-            f"`{snapshot.provider}` | `{snapshot.model}` | `{snapshot.status.value.upper()}`",
-            snapshot.prompt_preview,
-        ]
-        if snapshot.submitted_at:
-            lines.append(
-                f"Submitted: `{TaskDashboardPresenter._format_timestamp(snapshot.submitted_at)}`"
-            )
-        if snapshot.elapsed_seconds is not None:
-            lines.append(f"Elapsed: `{snapshot.elapsed_seconds:.2f}s`")
-        return "  \n".join(lines)
+    def _build_task_choice_label(snapshot: TaskSnapshot) -> str:
+        """Build user-friendly task label with emoji status and relative time.
+        
+        Format:
+            ✅ A beautiful sunset over the mountains...
+               FLUX.1 · 3分钟前
+        """
+        emoji = STATUS_EMOJI.get(snapshot.status, "❓")
+        prompt = snapshot.prompt_preview or "(empty prompt)"
+        model = snapshot.model or "unknown"
+        time_str = TaskDashboardPresenter._format_relative_time(snapshot.submitted_at)
+        return f"{emoji} {prompt}\n   {model} · {time_str}"
 
     @staticmethod
-    def _build_task_choice_label(snapshot: TaskSnapshot) -> str:
-        status = snapshot.status.value.upper()
-        prompt = snapshot.prompt_preview or "(empty prompt)"
-        return f"[{status}] {snapshot.task_id[:8]} | {snapshot.provider}/{snapshot.model} | {prompt}"
+    def _format_relative_time(dt: Optional[datetime]) -> str:
+        """Convert timestamp to relative time (e.g., '3分钟前')."""
+        if dt is None:
+            return "未知"
+        now = datetime.now(timezone.utc) if dt.tzinfo else datetime.now()
+        delta = now - dt
+        seconds = int(delta.total_seconds())
+        if seconds < 60:
+            return "刚刚"
+        elif seconds < 3600:
+            return f"{seconds // 60}分钟前"
+        elif seconds < 86400:
+            return f"{seconds // 3600}小时前"
+        else:
+            return f"{seconds // 86400}天前"
 
     @staticmethod
     def _build_refresh_interval(snapshots: List[TaskSnapshot]) -> Optional[float]:

@@ -89,7 +89,6 @@ class Application:
                 inputs=[browser_task_state, session_state_machine],
                 outputs=[
                     browser_task_state,
-                    output.get_current_task(),
                     output.get_gallery(),
                     output.get_status_bar(),
                     output.get_logcat_output(),

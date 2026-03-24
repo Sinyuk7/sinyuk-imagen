@@ -97,7 +97,6 @@ class TaskDashboardHandler:
         )
         return DashboardResponse(
             browser_state_value=response.browser_state_value,
-            selected_task_markdown=response.selected_task_markdown,
             gallery_items=error_view_model.gallery_items,
             status_text=error_view_model.status_text,
             logcat_markdown=error_view_model.logcat_markdown,
@@ -139,7 +138,6 @@ class TaskDashboardHandler:
         )
         return DashboardResponse(
             browser_state_value=view_model.browser_state.to_value(),
-            selected_task_markdown=view_model.selected_task_markdown,
             gallery_items=view_model.detail_view_model.gallery_items,
             status_text=view_model.detail_view_model.status_text,
             logcat_markdown=view_model.detail_view_model.logcat_markdown,

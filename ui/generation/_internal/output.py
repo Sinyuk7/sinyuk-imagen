@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import gradio as gr
+import gradio as gr # pyright: ignore[reportMissingImports]
 
 from ui.generation._internal.component_base import BaseComponent
 
@@ -16,7 +16,6 @@ class OutputPanel(BaseComponent):
 
     def render(self) -> None:
         """Render gallery, compare slider, log console, and task selector."""
-        self._components["current_task"] = gr.Markdown(value="### No task selected")
         with gr.Tabs() as tabs:
             self._components["tabs"] = tabs
             with gr.Tab("Gallery"):
@@ -50,9 +49,6 @@ class OutputPanel(BaseComponent):
             value=None,
             info="Newest first. Click a task to inspect its details.",
         )
-
-    def get_current_task(self) -> gr.Markdown:
-        return self._components["current_task"]
 
     def get_gallery(self) -> gr.Gallery:
         return self._components["gallery"]
