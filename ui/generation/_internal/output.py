@@ -44,10 +44,10 @@ class OutputPanel(BaseComponent):
         with gr.Accordion("Log Console", open=False):
             self._components["logcat_output"] = gr.Markdown(value="")
         self._components["task_selector"] = gr.Radio(
-            label="Tasks",
+            label="Task History",
             choices=[],
             value=None,
-            info="Newest first. Click a task to inspect its details.",
+            info="Newest first. Click to view details.",
         )
 
     def get_gallery(self) -> gr.Gallery:

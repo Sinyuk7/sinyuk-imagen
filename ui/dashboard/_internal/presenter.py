@@ -134,34 +134,71 @@ class TaskDashboardPresenter:
 
     @staticmethod
     def _build_task_choice_label(snapshot: TaskSnapshot) -> str:
-        """Build user-friendly task label with emoji status and relative time.
+        """Build single-line task label with fixed-width prompt.
         
-        Format:
-            ✅ A beautiful sunset over the mountains...
-               FLUX.1 · 3分钟前
+        INTENT: Generate compact label for Radio choice display
+        INPUT: TaskSnapshot
+        OUTPUT: Single-line string with fixed-width prompt
+        SIDE EFFECT: None
+        FAILURE: Returns fallback label with "unknown" values
+        
+        Format: ✅ A beautiful sunset ov... | FLUX.1 | 3m
         """
         emoji = STATUS_EMOJI.get(snapshot.status, "❓")
-        prompt = snapshot.prompt_preview or "(empty prompt)"
+        
+        # Fixed prompt length (20 chars, padded/truncated)
+        prompt = snapshot.prompt_preview or "(empty)"
+        max_len = 20
+        if len(prompt) > max_len:
+            prompt = prompt[:max_len - 1] + "…"
+        else:
+            prompt = prompt.ljust(max_len)
+        
+        # Short model name (max 12 chars)
         model = snapshot.model or "unknown"
-        time_str = TaskDashboardPresenter._format_relative_time(snapshot.submitted_at)
-        return f"{emoji} {prompt}\n   {model} · {time_str}"
+        if len(model) > 12:
+            model = model[:11] + "…"
+        
+        time_str = TaskDashboardPresenter._format_relative_time_short(snapshot.submitted_at)
+        
+        return f"{emoji} {prompt} | {model} | {time_str}"
 
     @staticmethod
-    def _format_relative_time(dt: Optional[datetime]) -> str:
-        """Convert timestamp to relative time (e.g., '3分钟前')."""
+    def _format_relative_time_short(dt: Optional[datetime]) -> str:
+        """Convert timestamp to short relative time (e.g., '3m', '2h', '1d')."""
         if dt is None:
-            return "未知"
+            return "?"
         now = datetime.now(timezone.utc) if dt.tzinfo else datetime.now()
         delta = now - dt
         seconds = int(delta.total_seconds())
         if seconds < 60:
-            return "刚刚"
+            return "now"
         elif seconds < 3600:
-            return f"{seconds // 60}分钟前"
+            return f"{seconds // 60}m"
         elif seconds < 86400:
-            return f"{seconds // 3600}小时前"
+            return f"{seconds // 3600}h"
         else:
-            return f"{seconds // 86400}天前"
+            return f"{seconds // 86400}d"
+
+    @staticmethod
+    def _format_relative_time(dt: Optional[datetime]) -> str:
+        """Convert timestamp to relative time (e.g., '3 min ago')."""
+        if dt is None:
+            return "unknown"
+        now = datetime.now(timezone.utc) if dt.tzinfo else datetime.now()
+        delta = now - dt
+        seconds = int(delta.total_seconds())
+        if seconds < 60:
+            return "just now"
+        elif seconds < 3600:
+            mins = seconds // 60
+            return f"{mins} min ago" if mins == 1 else f"{mins} mins ago"
+        elif seconds < 86400:
+            hours = seconds // 3600
+            return f"{hours} hr ago" if hours == 1 else f"{hours} hrs ago"
+        else:
+            days = seconds // 86400
+            return f"{days} day ago" if days == 1 else f"{days} days ago"
 
     @staticmethod
     def _build_refresh_interval(snapshots: List[TaskSnapshot]) -> Optional[float]:
