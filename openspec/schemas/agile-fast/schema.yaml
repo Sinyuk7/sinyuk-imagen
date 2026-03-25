@@ -1,0 +1,49 @@
+name: agile-fast
+version: 1
+description: Fast solo workflow for small scoped changes (Tasks -> Apply -> Relay)
+
+artifacts:
+  - id: tasks
+    generates: tasks.md
+    description: Minimal actionable checklist for a small scoped change
+    template: tasks.md
+    instruction: |
+      Turn the requested change into the smallest useful checklist.
+
+      Requirements:
+      - Include only tasks that are actually needed for this change
+      - Every task must use checkbox format: `- [ ] X.Y Task description`
+      - Use `##` headings only when they help readability; rename or remove placeholder sections freely
+      - Order tasks by execution dependency
+      - Keep the list short; prefer 2-6 tasks for genuinely small changes
+      - Add a validation task that matches the real blast radius
+      - If cleanup is optional, mark it clearly as optional instead of inventing a full phase
+    requires: []
+
+  - id: relay
+    generates: relay.md
+    description: Session summary and ready-to-paste resume handoff
+    template: relay.md
+    instruction: |
+      Summarize the session in a way that lets the next chat resume immediately.
+
+      Requirements:
+      - Record only completed work that actually happened
+      - Note remaining TODOs with concrete next actions
+      - Capture validation as Pass / Fail / Not Run based on real execution
+      - Include blockers, risks, or design findings only when they are real
+      - End with a ready-to-copy prompt for the next session
+    requires:
+      - tasks
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    Fast execution workflow
+    - Read `tasks.md`
+    - Execute tasks in order
+    - Mark completed tasks as `- [x]`
+    - Keep the change scoped and practical
+    - Before ending the session, create or update `relay.md`
+    - `relay.md` must reflect the current state whether the work is complete, partial, or blocked

@@ -1,4 +1,4 @@
-schema: agile-relay
+schema: agile-fast
 
 context: |
   Project: Modular AI Image Generation Web UI
@@ -22,26 +22,13 @@ context: |
   - NO independent parameter mapping modules or directories outside of the Integration Layer's encapsulation.
 
 rules:
-  proposal:
-    - "Clearly define logical system boundaries and layer responsibilities."
-    - "Detail the unidirectional data flow from Presentation -> Orchestration -> Integration."
-    - "Specify extensibility mechanisms that strictly adhere to the Open-Closed Principle."
-    - "Explicitly list architectural anti-goals to prevent over-engineering and scope creep."
-
-  design:
-    - "Enforce strict physical and logical separation of concerns via modular project structure."
-    - "Ensure adding a new integration requires ZERO modifications to the Presentation or Orchestration layers."
-    - "Mandate a completely config-driven architecture: externalize all endpoints, credentials, and active models to declarative configuration."
-    - "Eliminate all hardcoded environment-specific or integration-specific values in the core codebase."
-
-  specs:
-    - "All integrations must implement and adhere to a single, unified abstract interface."
-    - "The Presentation layer is strictly prohibited from instantiating, importing, or invoking integrations directly."
-    - "Payload adaptation (translating generic request objects to API-specific JSON/parameters) must occur entirely and exclusively within the specific integration's internal boundary."
-    - "User prompts must be passed through to integrations immutably, without any system-level string manipulation."
-    - "Integrations must act as error boundaries: they must catch internal/network errors and return standardized, safe result objects to the Orchestration layer."
-
   tasks:
-    - "Implementation sequence must respect architectural dependencies: Foundations/Config -> Interfaces -> Orchestration -> Presentation."
-    - "Strictly isolate component rendering logic from business and routing logic."
-    - "Implement robust dependency injection, factory, or registry patterns for dynamic integration management."
+    - "Prefer the fewest concrete tasks that can complete the change safely."
+    - "Only create tasks that are directly required by the current change; avoid placeholder phases."
+    - "Keep each task executable and verifiable within a short session."
+    - "Add only the smallest meaningful validation for the actual blast radius."
+
+  relay:
+    - "Summarize only work that actually happened in this session."
+    - "Call out remaining TODOs, blockers, and risks explicitly."
+    - "End with a ready-to-paste next-session prompt for fast resume."

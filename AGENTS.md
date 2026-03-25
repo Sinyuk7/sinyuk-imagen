@@ -1,262 +1,99 @@
-# 🤖 AGENTS.md — Agent Operating Manual
+# AGENTS.md
 
-> Optimized for AI coding agents working with partial context
-> Target runtime: Hugging Face Spaces (Gradio, stateless container)
+## Boot
+- Read AGENTS.md
+- Read MEMORY.md if exists
+- Inspect only relevant files
+- Prefer modify over create
+- Keep changes minimal
 
----
+## Priority
+- User > MEMORY.md > AGENTS.md > existing code
 
-## 🟢 0. Quick Commands (MANDATORY ENTRY)
+## Mission
+- Write correct, minimal, maintainable code
+- Keep code clear, compact, explicit
+- Fit existing structure, avoid over-design
 
-Agents MUST use these commands to validate work:
+## Non-negotiables
+- Clarity > cleverness
+- Explicit > implicit
+- Small files > large files
+- Deterministic > hidden magic
+- Simple flow > deep helpers
 
+## Code Rules
+- Use clear names
+- Keep control flow shallow
+- Avoid unnecessary abstraction
+- Avoid hidden state
+- No silent fallback
+- Separate logic from I/O
+- Match existing good patterns
+
+## File Rules
+- Large file = bad design → split
+- Split by responsibility
+- Prefer small focused modules
+- Target: file ≤ 300 LOC
+- Target: function ≤ 50 LOC
+
+## Function Rules
+- One function = one clear job
+- Call chain must be traceable
+- No vague helpers unless clear
+- Failure must be explicit
+
+## Docstring (REQUIRED)
+Format for core functions:
 ```
-pip install -r requirements.txt
-python app.py
-pytest -q  (if tests exist)
-```
+"""Map task snapshots into task list and detail view models.
 
----
-
-## 🟢 1. Mission
-
-You are an AI coding agent.
-
-Goals:
-
-* produce correct, minimal, testable code
-* follow structure strictly
-* avoid hidden behavior
-* ensure compatibility with stateless runtime
-
----
-
-## 🟢 2. Tech Stack
-
-* Python
-* Gradio
-* Hugging Face Spaces
-* External storage (optional for persistence)
-
----
-
-## 🟢 3. Project Structure
-
-* Organize by feature (vertical slice)
-* Each module must be:
-
-  * self-contained
-  * independently testable
-
-Rules:
-
-* `_internal/` = private (no cross-import)
-* Max directory depth: 3
-* File ≤ 300 LOC
-* Function ≤ 50 LOC
-* ≤ 2 external dependencies per function
-
----
-
-## 🟢 4. Code Contracts
-
-* 100% typed (no `any`)
-* Explicit imports only (no wildcard imports)
-* Types must express business meaning
-
-Example:
-
-```
-type VerifiedUser = {
-  id: string
-  role: "enterprise"
-  verified: true
-}
+INTENT: 将任务快照列表转换为仪表盘视图模型
+INPUT: browser_state, snapshots, metrics_snapshot
+OUTPUT: TaskDashboardViewModel
+SIDE EFFECT: None
+FAILURE: 返回空/默认状态的 TaskDashboardViewModel
+"""
 ```
 
----
-
-## 🟢 5. Function Contract (REQUIRED)
-
-Every core function MUST include:
-
-```
-INTENT:
-INPUT:
-OUTPUT:
-SIDE EFFECT:
-FAILURE:
-```
-
----
-
-## 🟢 6. Side Effects
-
-* Separate logic from I/O
-* Must be declared explicitly
-
-Example:
-
-```
-// SIDE_EFFECT: DB_WRITE | NETWORK | FILE_SYSTEM
-```
-
-* Prefer immutable data
-
----
-
-## 🟢 7. Runtime Constraints (Hugging Face Spaces)
-
-### 7.1 Stateless Execution
-
-* Container is ephemeral and may restart anytime:
-
-  * push
-  * idle
-  * manual restart
-
-Rules:
-
-* DO NOT rely on global variables
-* DO NOT store user state in memory
-* Persist important state externally
-
----
-
-### 7.2 File System
-
-* Local filesystem is NOT persistent
-* `/tmp` will be cleared
-
-Rules:
-
-* DO NOT rely on `/tmp` for persistence
-* DO NOT return long-lived local file paths
-* Use in-memory objects or external storage
-
----
-
-### 7.3 Persistence
-
-Use one of:
-
-* Hugging Face Dataset
-* S3 / GCS / Supabase
-
----
-
-### 7.4 Path Safety
-
-* No absolute paths (e.g. `/Users/...`)
-* Use relative paths
-* Ensure files exist in repo
-* Linux is case-sensitive
-
----
-
-### 7.5 Dependencies
-
-* All dependencies must be in requirements.txt
-* Prefer pinned versions
-
-System dependencies (if needed):
-
-* use packages.txt (e.g. ffmpeg, libgl1)
-
----
-
-### 7.6 Secrets & Network
-
-* Use environment variables (Secrets)
-* Never hardcode API keys
-
-Must handle:
-
-* timeouts
-* API failures
-* retries when safe
-
----
-
-## 🟢 8. Gradio Rules
-
-### File Outputs
-
-* Do NOT return unstable `/tmp` paths
-* Return objects or verified files
-
-### Concurrency
-
-* No shared mutable globals
-* Avoid race conditions
-* Use queue if needed
-
-### UI State
-
-* Must be refresh-safe OR disposable
-* Use gr.State or external storage if needed
-
----
-
-## 🟢 9. Models & Large Files
-
-* Do NOT store models in repo
-* Load from Hugging Face Hub
-* Use caching
-
----
-
-## 🟢 10. Boundaries (CRITICAL)
-
-### ALWAYS
-
-* keep functions small and deterministic
-* log important steps
-* handle errors explicitly
-
-### ASK BEFORE
-
-* modifying multiple files
-* changing architecture
-* adding new dependencies
-
-### NEVER
-
-* hardcode secrets
-* rely on hidden state
-* silently ignore errors
-* return null instead of errors
-* persist data locally
-
----
-
-## 🟢 11. Observability
-
-* Structured logs preferred (JSON)
-* All errors must be:
-
-  * caught
-  * logged
-  * surfaced
-
----
-
-## 🟢 12. Deployment Checklist
-
-Before finishing, verify:
-
-* app runs from cold start
-* no `/tmp` persistence
-* no global state dependency
-* dependencies complete
-* secrets via environment
-* concurrency-safe
-* logs available
-
----
-
-## 🟢 13. Philosophy
-
-* Explicit > implicit
-* Simple > clever
-* Deterministic > magical
-* Stateless > stateful
+## Docstring Rules
+- First line = short summary
+- INTENT = purpose
+- INPUT / OUTPUT = exact
+- SIDE EFFECT = explicit or None
+- FAILURE = concrete
+- Explain role in call chain
+
+## Side Effects
+- Must be explicit
+- Keep at boundaries
+- No hidden DB / network / FS ops
+
+## Types
+- Prefer strong types
+- Express business meaning
+- Avoid weak containers
+
+## Comments
+- Short and useful
+- Explain intent, not obvious code
+- Remove stale comments
+
+## Errors
+- No silent failure
+- Handle or surface
+- Log when meaningful
+- Default only if intentional
+
+## State
+- No hidden globals
+- No implicit memory
+- Explicit ownership only
+
+## Done
+- MEMORY.md read
+- change minimal
+- code clearer
+- side effects explicit
+- failure defined
