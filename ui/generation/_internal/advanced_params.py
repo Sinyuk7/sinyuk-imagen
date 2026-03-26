@@ -21,11 +21,12 @@ class AdvancedParamsPanel(BaseComponent):
             type="password",
         )
 
-        with gr.Accordion("Advanced Settings", open=False):
+        with gr.Accordion("Advanced Settings", open=False, elem_id="advanced-settings-panel"):
             self._components["debug_mode"] = gr.Checkbox(
                 label="Debug Mode (Dry Run)",
                 value=False,
                 info="When enabled, no real request is sent. A sanitized final request snapshot will be shown below.",
+                elem_id="debug-mode-toggle",
             )
             self._components["negative_prompt"] = gr.Textbox(
                 label="Negative Prompt",

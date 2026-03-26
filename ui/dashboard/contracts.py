@@ -80,11 +80,16 @@ class DashboardResponse:
     """
 
     browser_state_value: BrowserTaskStateValue
+    page_session_id_value: str
+    warning_banner_update: object
     gallery_items: list[object]
     status_text: str
     logcat_markdown: str
     slider_value: object
-    task_selector_update: object
+    mark_saved_button_update: object
+    mark_all_saved_button_update: object
+    task_history_list_update: object
+    task_selection_bridge_update: object
     refresh_interval_seconds: float | None
     admin_metrics_markdown: str
     state_machine: "StateMachine"
@@ -93,9 +98,14 @@ class DashboardResponse:
         self,
     ) -> tuple[
         BrowserTaskStateValue,
+        str,
+        object,
         list[object],
         str,
         str,
+        object,
+        object,
+        object,
         object,
         object,
         float | None,
@@ -104,11 +114,16 @@ class DashboardResponse:
     ]:
         return (
             self.browser_state_value,
+            self.page_session_id_value,
+            self.warning_banner_update,
             self.gallery_items,
             self.status_text,
             self.logcat_markdown,
             self.slider_value,
-            self.task_selector_update,
+            self.mark_saved_button_update,
+            self.mark_all_saved_button_update,
+            self.task_history_list_update,
+            self.task_selection_bridge_update,
             self.refresh_interval_seconds,
             self.admin_metrics_markdown,
             self.state_machine,

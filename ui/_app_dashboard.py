@@ -14,20 +14,30 @@ from ui.state_machine import StateMachine
 def hydrate_dashboard_outputs(
     dashboard_ui: DashboardUIComponents,
     browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+    page_session_id_value: str | None | object,
     state_machine: StateMachine,
 ) -> tuple[object, ...]:
     """Convert dashboard hydration into the raw Gradio output tuple."""
-    response = dashboard_ui.handler.hydrate_dashboard(browser_state_value, state_machine)
+    response = dashboard_ui.handler.hydrate_dashboard(
+        browser_state_value,
+        page_session_id_value,
+        state_machine,
+    )
     return response.to_output_tuple()
 
 
 def refresh_dashboard_outputs(
     dashboard_ui: DashboardUIComponents,
     browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+    page_session_id_value: str | None | object,
     state_machine: StateMachine,
 ) -> tuple[object, ...]:
     """Convert dashboard refresh into the raw Gradio output tuple."""
-    response = dashboard_ui.handler.refresh_dashboard(browser_state_value, state_machine)
+    response = dashboard_ui.handler.refresh_dashboard(
+        browser_state_value,
+        page_session_id_value,
+        state_machine,
+    )
     return response.to_output_tuple()
 
 
@@ -35,12 +45,14 @@ def select_task_outputs(
     dashboard_ui: DashboardUIComponents,
     selected_task_id: str | None,
     browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+    page_session_id_value: str | None | object,
     state_machine: StateMachine,
 ) -> tuple[object, ...]:
     """Convert task selection into the raw Gradio output tuple."""
     response = dashboard_ui.handler.select_task(
         selected_task_id,
         browser_state_value,
+        page_session_id_value,
         state_machine,
     )
     return response.to_output_tuple()
@@ -49,32 +61,41 @@ def select_task_outputs(
 def bind_dashboard_events(
     dashboard_ui: DashboardUIComponents,
     generation_ui: GenerationUIComponents,
+    session_warning_banner: gr.Markdown,
     browser_task_state: Block,
+    page_session_id_state: gr.State,
     session_state_machine: gr.State,
     refresh_timer: Block,
 ) -> None:
     """Bind dashboard task selection and auto-refresh callbacks."""
     output = generation_ui.output
 
-    output.get_task_selector().change(
-        fn=lambda selected_task_id, browser_state_value, state_machine: select_task_outputs(
+    output.get_task_selection_bridge().change(
+        fn=lambda selected_task_id, browser_state_value, page_session_id_value, state_machine: select_task_outputs(
             dashboard_ui,
             selected_task_id,
             browser_state_value,
+            page_session_id_value,
             state_machine,
         ),
         inputs=[
-            output.get_task_selector(),
+            output.get_task_selection_bridge(),
             browser_task_state,
+            page_session_id_state,
             session_state_machine,
         ],
         outputs=[
             browser_task_state,
+            page_session_id_state,
+            session_warning_banner,
             output.get_gallery(),
             output.get_status_bar(),
             output.get_logcat_output(),
             output.get_image_slider(),
-            output.get_task_selector(),
+            output.get_mark_saved_button(),
+            output.get_mark_all_saved_button(),
+            output.get_task_history_list(),
+            output.get_task_selection_bridge(),
             refresh_timer,
             output.get_admin_metrics(),
             session_state_machine,
@@ -84,22 +105,90 @@ def bind_dashboard_events(
 
     if hasattr(refresh_timer, "tick"):
         refresh_timer.tick(
-            fn=lambda browser_state_value, state_machine: refresh_dashboard_outputs(
+            fn=lambda browser_state_value, page_session_id_value, state_machine: refresh_dashboard_outputs(
                 dashboard_ui,
                 browser_state_value,
+                page_session_id_value,
                 state_machine,
             ),
-            inputs=[browser_task_state, session_state_machine],
+            inputs=[browser_task_state, page_session_id_state, session_state_machine],
             outputs=[
                 browser_task_state,
+                page_session_id_state,
+                session_warning_banner,
                 output.get_gallery(),
                 output.get_status_bar(),
                 output.get_logcat_output(),
                 output.get_image_slider(),
-                output.get_task_selector(),
+                output.get_mark_saved_button(),
+                output.get_mark_all_saved_button(),
+                output.get_task_history_list(),
+                output.get_task_selection_bridge(),
                 refresh_timer,
                 output.get_admin_metrics(),
                 session_state_machine,
             ],
             queue=False,
         )
+
+    output.get_mark_saved_button().click(
+        fn=lambda selected_task_id, browser_state_value, page_session_id_value, state_machine: dashboard_ui.handler.mark_selected_task_saved(
+            selected_task_id,
+            browser_state_value,
+            page_session_id_value,
+            state_machine,
+        ).to_output_tuple(),
+        inputs=[
+            output.get_task_selection_bridge(),
+            browser_task_state,
+            page_session_id_state,
+            session_state_machine,
+        ],
+        outputs=[
+            browser_task_state,
+            page_session_id_state,
+            session_warning_banner,
+            output.get_gallery(),
+            output.get_status_bar(),
+            output.get_logcat_output(),
+            output.get_image_slider(),
+            output.get_mark_saved_button(),
+            output.get_mark_all_saved_button(),
+            output.get_task_history_list(),
+            output.get_task_selection_bridge(),
+            refresh_timer,
+            output.get_admin_metrics(),
+            session_state_machine,
+        ],
+        queue=False,
+    )
+
+    output.get_mark_all_saved_button().click(
+        fn=lambda browser_state_value, page_session_id_value, state_machine: dashboard_ui.handler.mark_all_tasks_saved(
+            browser_state_value,
+            page_session_id_value,
+            state_machine,
+        ).to_output_tuple(),
+        inputs=[
+            browser_task_state,
+            page_session_id_state,
+            session_state_machine,
+        ],
+        outputs=[
+            browser_task_state,
+            page_session_id_state,
+            session_warning_banner,
+            output.get_gallery(),
+            output.get_status_bar(),
+            output.get_logcat_output(),
+            output.get_image_slider(),
+            output.get_mark_saved_button(),
+            output.get_mark_all_saved_button(),
+            output.get_task_history_list(),
+            output.get_task_selection_bridge(),
+            refresh_timer,
+            output.get_admin_metrics(),
+            session_state_machine,
+        ],
+        queue=False,
+    )

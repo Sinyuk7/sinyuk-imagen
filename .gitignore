@@ -39,3 +39,4 @@ pyrightconfig.json
 
 ravenspec/schemas/sdd/
 ravenspec
+.gstack/

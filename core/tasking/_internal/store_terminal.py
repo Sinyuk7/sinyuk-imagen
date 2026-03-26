@@ -58,6 +58,7 @@ def set_terminal_state(
     record.error = error
     record.error_code = error_code
     record.result = result
+    record.saved_at = None
     record.diagnostics = diagnostics
     record.prepared_reference_image_path = prepared_reference_image_path
     return cleanup_paths

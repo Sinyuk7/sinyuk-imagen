@@ -58,7 +58,9 @@ def prepare_reference_preview(
 def bind_generation_events(
     generation_ui: GenerationUIComponents,
     prepared_reference_state: gr.State,
+    session_warning_banner: gr.Markdown,
     browser_task_state: Block,
+    page_session_id_state: gr.State,
     session_state_machine: gr.State,
     refresh_timer: Block,
 ) -> None:
@@ -174,7 +176,7 @@ def bind_generation_events(
     )
 
     generation_ui.controls.get_button().click(
-        fn=lambda prompt_text, provider_name, model_name, img_count, ratio, flip_checked, resolution, neg_prompt, seed_val, guidance_enabled, guidance_val, advanced_json, provider_token_val, debug_mode, reference_image_path, divisible_by, browser_state_value, state_machine: generation_ui.generate_handler.handle_generate(
+        fn=lambda prompt_text, provider_name, model_name, img_count, ratio, flip_checked, resolution, neg_prompt, seed_val, guidance_enabled, guidance_val, advanced_json, provider_token_val, debug_mode, reference_image_path, divisible_by, browser_state_value, page_session_id_value, state_machine: generation_ui.generate_handler.handle_generate(
             prompt_text,
             provider_name,
             model_name,
@@ -192,6 +194,7 @@ def bind_generation_events(
             reference_image_path,
             divisible_by,
             browser_state_value,
+            page_session_id_value,
             state_machine,
         ).to_output_tuple(),
         inputs=[
@@ -212,15 +215,21 @@ def bind_generation_events(
             basic_params.get_component("reference_image"),
             basic_params.get_component("divisible_by"),
             browser_task_state,
+            page_session_id_state,
             session_state_machine,
         ],
         outputs=[
             browser_task_state,
+            page_session_id_state,
+            session_warning_banner,
             output.get_gallery(),
             output.get_status_bar(),
             output.get_logcat_output(),
             output.get_image_slider(),
-            output.get_task_selector(),
+            output.get_mark_saved_button(),
+            output.get_mark_all_saved_button(),
+            output.get_task_history_list(),
+            output.get_task_selection_bridge(),
             refresh_timer,
             output.get_admin_metrics(),
             session_state_machine,

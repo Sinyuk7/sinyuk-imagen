@@ -25,6 +25,7 @@ class TaskManagerSettings:
     max_running_tasks: int = 2
     max_pending_tasks: int = 20
     task_ttl_seconds: int = 10800
+    session_ttl_seconds: int = 43200
     running_timeout_seconds: int = 3600
     cleanup_interval_seconds: int = 600
     shutdown_drain_timeout_seconds: int = 10
@@ -60,6 +61,8 @@ class TaskSnapshot:
     diagnostics: ProviderDiagnostics | None = None
     prepared_reference_image_path: str | None = None
     related_files: list[str] = field(default_factory=list)
+    is_saved: bool = False
+    saved_at: datetime | None = None
 
     @property
     def is_terminal(self) -> bool:
@@ -68,7 +71,7 @@ class TaskSnapshot:
 
 @dataclass(frozen=True)
 class BrowserTaskState:
-    """Browser-local task ids persisted across refreshes."""
+    """Page-local task selection state owned by transient Gradio state."""
 
     task_ids: list[TaskId] = field(default_factory=list)
     selected_task_id: TaskId | None = None

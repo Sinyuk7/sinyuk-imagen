@@ -151,6 +151,88 @@ class TaskManager:
         """
         return self._store.list_snapshots(list(task_ids))
 
+    def list_tasks_for_session(self, owner_session_id: str) -> list[TaskSnapshot]:
+        """
+        INTENT: 按页面会话返回该会话拥有的任务快照。
+        INPUT:
+            - owner_session_id: 当前页面会话 ID
+        OUTPUT: list[TaskSnapshot]
+        SIDE EFFECT: 更新会话最近访问时间
+        FAILURE: owner_session_id 为空时抛出 ValueError
+        """
+        if not owner_session_id.strip():
+            raise ValueError("Page session id is required.")
+        now = self._utcnow()
+        self._store.touch_session(owner_session_id, now=now)
+        return self._store.list_snapshots_for_session(owner_session_id)
+
+    def touch_session(self, owner_session_id: str) -> None:
+        """
+        INTENT: 刷新页面会话的最近访问时间。
+        INPUT:
+            - owner_session_id: 当前页面会话 ID
+        OUTPUT: None
+        SIDE EFFECT: 更新会话最近访问时间
+        FAILURE: owner_session_id 为空时抛出 ValueError
+        """
+        if not owner_session_id.strip():
+            raise ValueError("Page session id is required.")
+        self._store.touch_session(owner_session_id, now=self._utcnow())
+
+    def has_unsaved_outputs_for_session(self, owner_session_id: str) -> bool:
+        """
+        INTENT: 判断页面会话是否仍有未标记保存的成功结果。
+        INPUT:
+            - owner_session_id: 当前页面会话 ID
+        OUTPUT: bool
+        SIDE EFFECT: 更新会话最近访问时间
+        FAILURE: owner_session_id 为空时抛出 ValueError
+        """
+        if not owner_session_id.strip():
+            raise ValueError("Page session id is required.")
+        self._store.touch_session(owner_session_id, now=self._utcnow())
+        return self._store.has_unsaved_outputs_for_session(owner_session_id)
+
+    def mark_task_saved(self, task_id: str, *, owner_session_id: str) -> None:
+        """
+        INTENT: 将成功任务显式标记为已保存。
+        INPUT:
+            - task_id: 任务 ID
+            - owner_session_id: 当前页面会话 ID
+        OUTPUT: None
+        SIDE EFFECT: 更新任务保存状态与会话最近访问时间
+        FAILURE: task_id 或 owner_session_id 非法时抛出 ValueError
+        """
+        if not task_id.strip():
+            raise ValueError("Task id is required.")
+        if not owner_session_id.strip():
+            raise ValueError("Page session id is required.")
+        now = self._utcnow()
+        self._store.touch_session(owner_session_id, now=now)
+        self._store.mark_task_saved(
+            task_id,
+            owner_session_id=owner_session_id,
+            now=now,
+        )
+
+    def mark_all_tasks_saved(self, *, owner_session_id: str) -> int:
+        """
+        INTENT: 将当前页面会话下所有成功任务标记为已保存。
+        INPUT:
+            - owner_session_id: 当前页面会话 ID
+        OUTPUT: int
+        SIDE EFFECT: 更新多个任务保存状态与会话最近访问时间
+        FAILURE: owner_session_id 非法时抛出 ValueError
+        """
+        if not owner_session_id.strip():
+            raise ValueError("Page session id is required.")
+        now = self._utcnow()
+        self._store.touch_session(owner_session_id, now=now)
+        return self._store.mark_all_tasks_saved(
+            owner_session_id=owner_session_id,
+            now=now,
+        )
+
     def get_metrics_snapshot(self) -> TaskManagerMetricsSnapshot:
         """
         获取指标快照

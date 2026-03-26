@@ -16,18 +16,15 @@ from ui.generation._internal.status_formatter import shorten_error
 def render_logcat(
     result: GenerationResult | None = None,
     diagnostics: ProviderDiagnostics | None = None,
+    error_message: str | None = None,
 ) -> str:
     """Render provider diagnostics into concise markdown for the UI panel."""
     effective_diagnostics = diagnostics or (result.diagnostics if result else None)
     facts = list(effective_diagnostics.facts or []) if effective_diagnostics else []
-    if not facts:
-        return ""
-
     visible_facts = [fact for fact in facts if should_render_fact(fact)]
-    if not visible_facts:
-        return ""
-
-    blocks: list[str] = ["## Log"]
+    blocks: list[str] = []
+    if visible_facts:
+        blocks.append("## Log")
     for fact in visible_facts:
         if fact.code == DiagnosticCode.REQUEST_SNAPSHOT:
             blocks.extend(
@@ -43,6 +40,17 @@ def render_logcat(
         message = format_fact_message(fact)
         if message:
             blocks.append(f"- {message}")
+    if error_message and error_message.strip():
+        if blocks:
+            blocks.append("")
+        blocks.extend(
+            [
+                "## Technical Error",
+                "```text",
+                error_message.strip(),
+                "```",
+            ]
+        )
     return "\n".join(blocks)
 
 

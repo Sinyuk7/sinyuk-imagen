@@ -49,6 +49,7 @@ class DashboardHandlerPort(Protocol):
     def hydrate_dashboard(
         self,
         browser_state_value: BrowserTaskStateValue | object,
+        page_session_id_value: str | None | object,
         state_machine: StateMachine,
     ) -> DashboardResponse: ...
 
@@ -56,6 +57,7 @@ class DashboardHandlerPort(Protocol):
         self,
         *,
         browser_state_value: BrowserTaskStateValue | object,
+        page_session_id_value: str | None | object,
         state_machine: StateMachine,
         error_code: TaskErrorCode | None,
         error_message: str,

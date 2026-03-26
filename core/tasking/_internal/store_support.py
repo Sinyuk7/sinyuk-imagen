@@ -51,6 +51,8 @@ def snapshot_from_record(record: TaskRecord) -> TaskSnapshot:
         diagnostics=deepcopy(record.diagnostics),
         prepared_reference_image_path=record.prepared_reference_image_path,
         related_files=list(record.related_files),
+        is_saved=record.saved_at is not None,
+        saved_at=record.saved_at,
     )
 
 
@@ -72,6 +74,8 @@ def should_timeout(record: TaskRecord, now: datetime, timeout_window: timedelta)
 
 def is_ttl_expired(record: TaskRecord, now: datetime, ttl_window: timedelta) -> bool:
     """Return whether a terminal task record should be evicted from memory."""
+    if record.owner_session_id is not None:
+        return False
     if not record.status.is_terminal:
         return False
     terminal_time = record.finished_at or record.submitted_at

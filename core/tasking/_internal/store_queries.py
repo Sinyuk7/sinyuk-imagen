@@ -27,6 +27,35 @@ def list_snapshots(
     return snapshots
 
 
+def list_snapshots_for_session(
+    tasks: dict[str, TaskRecord],
+    owner_session_id: str,
+) -> list[TaskSnapshot]:
+    """Return immutable snapshots owned by one page session, newest first."""
+    records = [
+        record
+        for record in tasks.values()
+        if record.owner_session_id == owner_session_id
+    ]
+    records.sort(key=lambda record: record.submitted_at, reverse=True)
+    return [snapshot_from_record(record) for record in records]
+
+
+def has_unsaved_outputs_for_session(
+    tasks: dict[str, TaskRecord],
+    owner_session_id: str,
+) -> bool:
+    """Return whether a page session still owns unsaved successful outputs."""
+    return any(
+        record.owner_session_id == owner_session_id
+        and record.status == TaskStatus.SUCCEEDED
+        and record.result is not None
+        and record.result.success
+        and record.saved_at is None
+        for record in tasks.values()
+    )
+
+
 def metrics_snapshot(
     tasks: dict[str, TaskRecord],
     *,

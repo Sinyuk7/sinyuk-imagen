@@ -16,7 +16,14 @@ from typing import TYPE_CHECKING
 import gradio as gr # pyright: ignore[reportMissingImports]
 
 import core.api as core_api
-from core.schemas import BrowserTaskState, BrowserTaskStateValue, TaskErrorCode
+from core.schemas import (
+    BrowserTaskState,
+    BrowserTaskStateValue,
+    TaskErrorCode,
+    TaskSnapshot,
+    TaskStatus,
+)
+from ui._app_state import ensure_page_session_id
 from ui.dashboard.contracts import DashboardResponse
 from ui.generation import OutputPresenter
 from ui.dashboard._internal.presenter import TaskDashboardPresenter
@@ -39,22 +46,26 @@ class TaskDashboardHandler:
     def hydrate_dashboard(
         self,
         browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+        page_session_id_value: str | None | object,
         state_machine: "StateMachine",
     ) -> DashboardResponse:
         browser_state = BrowserTaskState.from_value(browser_state_value)
         return self._build_dashboard_response(
             browser_state=browser_state,
+            page_session_id=ensure_page_session_id(page_session_id_value),
             state_machine=state_machine,
         )
 
     def refresh_dashboard(
         self,
         browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+        page_session_id_value: str | None | object,
         state_machine: "StateMachine",
     ) -> DashboardResponse:
         browser_state = BrowserTaskState.from_value(browser_state_value)
         return self._build_dashboard_response(
             browser_state=browser_state,
+            page_session_id=ensure_page_session_id(page_session_id_value),
             state_machine=state_machine,
         )
 
@@ -62,6 +73,7 @@ class TaskDashboardHandler:
         self,
         selected_task_id: str | None,
         browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+        page_session_id_value: str | None | object,
         state_machine: "StateMachine",
     ) -> DashboardResponse:
         browser_state = BrowserTaskState.from_value(browser_state_value)
@@ -71,6 +83,60 @@ class TaskDashboardHandler:
         )
         return self._build_dashboard_response(
             browser_state=browser_state,
+            page_session_id=ensure_page_session_id(page_session_id_value),
+            state_machine=state_machine,
+        )
+
+    def mark_selected_task_saved(
+        self,
+        selected_task_id: str | None,
+        browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+        page_session_id_value: str | None | object,
+        state_machine: "StateMachine",
+    ) -> DashboardResponse:
+        browser_state = BrowserTaskState.from_value(browser_state_value)
+        page_session_id = ensure_page_session_id(page_session_id_value)
+        try:
+            if selected_task_id:
+                core_api.mark_task_saved(
+                    selected_task_id,
+                    owner_session_id=page_session_id,
+                )
+        except Exception as exc:
+            return self.build_submission_error_response(
+                browser_state_value=browser_state.to_value(),
+                page_session_id_value=page_session_id,
+                state_machine=state_machine,
+                error_code=TaskErrorCode.INVALID_REQUEST,
+                error_message=str(exc),
+            )
+        return self._build_dashboard_response(
+            browser_state=browser_state,
+            page_session_id=page_session_id,
+            state_machine=state_machine,
+        )
+
+    def mark_all_tasks_saved(
+        self,
+        browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+        page_session_id_value: str | None | object,
+        state_machine: "StateMachine",
+    ) -> DashboardResponse:
+        browser_state = BrowserTaskState.from_value(browser_state_value)
+        page_session_id = ensure_page_session_id(page_session_id_value)
+        try:
+            core_api.mark_all_tasks_saved(owner_session_id=page_session_id)
+        except Exception as exc:
+            return self.build_submission_error_response(
+                browser_state_value=browser_state.to_value(),
+                page_session_id_value=page_session_id,
+                state_machine=state_machine,
+                error_code=TaskErrorCode.INVALID_REQUEST,
+                error_message=str(exc),
+            )
+        return self._build_dashboard_response(
+            browser_state=browser_state,
+            page_session_id=page_session_id,
             state_machine=state_machine,
         )
 
@@ -78,13 +144,16 @@ class TaskDashboardHandler:
         self,
         *,
         browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+        page_session_id_value: str | None | object,
         state_machine: "StateMachine",
         error_code: TaskErrorCode | None,
         error_message: str,
     ) -> DashboardResponse:
         browser_state = BrowserTaskState.from_value(browser_state_value)
+        page_session_id = ensure_page_session_id(page_session_id_value)
         response = self._build_dashboard_response(
             browser_state=browser_state,
+            page_session_id=page_session_id,
             state_machine=state_machine,
         )
         error_view_model = OutputPresenter.build_error_result(
@@ -97,11 +166,16 @@ class TaskDashboardHandler:
         )
         return DashboardResponse(
             browser_state_value=response.browser_state_value,
+            page_session_id_value=page_session_id,
+            warning_banner_update=response.warning_banner_update,
             gallery_items=error_view_model.gallery_items,
             status_text=error_view_model.status_text,
             logcat_markdown=error_view_model.logcat_markdown,
             slider_value=error_view_model.slider_value,
-            task_selector_update=response.task_selector_update,
+            mark_saved_button_update=response.mark_saved_button_update,
+            mark_all_saved_button_update=response.mark_all_saved_button_update,
+            task_history_list_update=response.task_history_list_update,
+            task_selection_bridge_update=response.task_selection_bridge_update,
             refresh_interval_seconds=response.refresh_interval_seconds,
             admin_metrics_markdown=response.admin_metrics_markdown,
             state_machine=response.state_machine,
@@ -119,34 +193,72 @@ class TaskDashboardHandler:
         self,
         *,
         browser_state: BrowserTaskState,
+        page_session_id: str,
         state_machine: "StateMachine",
     ) -> DashboardResponse:
-        snapshots = core_api.list_tasks(browser_state.task_ids)
+        snapshots = core_api.list_tasks_for_session(page_session_id)
+        has_unsaved_outputs = core_api.has_unsaved_outputs_for_session(page_session_id)
         metrics_snapshot = core_api.get_task_metrics()
         view_model = TaskDashboardPresenter.build(
             browser_state=browser_state,
             snapshots=snapshots,
             metrics_snapshot=metrics_snapshot,
         )
+        selected_snapshot = next(
+            (
+                snapshot
+                for snapshot in snapshots
+                if snapshot.task_id == view_model.selected_task_id
+            ),
+            None,
+        )
         self.sync_slider_temp_files(
             state_machine,
             temp_paths=view_model.detail_view_model.slider_temp_paths,
         )
-        task_selector_update = gr.update(
-            choices=view_model.task_choices,
-            value=view_model.selected_task_id,
-        )
         return DashboardResponse(
             browser_state_value=view_model.browser_state.to_value(),
+            page_session_id_value=page_session_id,
+            warning_banner_update=self._build_warning_banner_update(has_unsaved_outputs),
             gallery_items=view_model.detail_view_model.gallery_items,
             status_text=view_model.detail_view_model.status_text,
             logcat_markdown=view_model.detail_view_model.logcat_markdown,
             slider_value=view_model.detail_view_model.slider_value,
-            task_selector_update=task_selector_update,
+            mark_saved_button_update=self._build_mark_saved_button_update(selected_snapshot),
+            mark_all_saved_button_update=self._build_mark_all_saved_button_update(has_unsaved_outputs),
+            task_history_list_update=gr.update(value=view_model.task_list_html),
+            task_selection_bridge_update=gr.update(value=view_model.selected_task_id or ""),
             refresh_interval_seconds=view_model.refresh_interval_seconds,
             admin_metrics_markdown=view_model.admin_metrics_markdown,
             state_machine=state_machine,
         )
+
+    def _build_warning_banner_update(self, has_unsaved_outputs: bool) -> object:
+        if not has_unsaved_outputs:
+            return gr.update(value="", visible=False)
+        return gr.update(
+            value=(
+                "**Unsaved Images**  \n"
+                "You still have generated images that only exist in this session. "
+                "Download them and mark them saved before leaving this page."
+            ),
+            visible=True,
+        )
+
+    def _build_mark_saved_button_update(self, snapshot: TaskSnapshot | None) -> object:
+        if snapshot is None:
+            return gr.update(visible=False)
+        if (
+            snapshot.status != TaskStatus.SUCCEEDED
+            or snapshot.result is None
+            or not snapshot.result.success
+            or snapshot.is_saved
+        ):
+            return gr.update(visible=True, interactive=False, value="Mark Saved")
+        return gr.update(visible=True, interactive=True, value="Mark Saved")
+
+    def _build_mark_all_saved_button_update(self, has_unsaved_outputs: bool) -> object:
+        return gr.update(visible=has_unsaved_outputs)
 
 
 # =============================================================================

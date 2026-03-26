@@ -32,6 +32,7 @@ class BasicParamsPanel(BaseComponent):
             placeholder=self._initial_provider_context.prompt_hint
             or DEFAULT_PROMPT_PLACEHOLDER,
             lines=4,
+            elem_id="prompt-input",
         )
 
         with gr.Row():

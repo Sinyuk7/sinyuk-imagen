@@ -102,6 +102,68 @@ def list_tasks(task_ids: list[TaskId]) -> list[TaskSnapshot]:
     return runtime.task_manager.list_tasks(task_ids)
 
 
+def list_tasks_for_session(owner_session_id: str) -> list[TaskSnapshot]:
+    """
+    INTENT: 返回当前页面会话拥有的任务快照列表。
+    INPUT: owner_session_id - 当前页面会话 ID
+    OUTPUT: list[TaskSnapshot]
+    SIDE EFFECT: 刷新会话最近访问时间
+    FAILURE: 运行时未就绪或会话 ID 非法时抛出异常
+    """
+    runtime = get_runtime()
+    return runtime.task_manager.list_tasks_for_session(owner_session_id)
+
+
+def touch_session(owner_session_id: str) -> None:
+    """
+    INTENT: 刷新当前页面会话的最近访问时间。
+    INPUT: owner_session_id - 当前页面会话 ID
+    OUTPUT: None
+    SIDE EFFECT: 更新任务存储中的会话最近访问时间
+    FAILURE: 运行时未就绪或会话 ID 非法时抛出异常
+    """
+    runtime = get_runtime()
+    runtime.task_manager.touch_session(owner_session_id)
+
+
+def has_unsaved_outputs_for_session(owner_session_id: str) -> bool:
+    """
+    INTENT: 判断当前页面会话是否仍有未显式保存的成功结果。
+    INPUT: owner_session_id - 当前页面会话 ID
+    OUTPUT: bool
+    SIDE EFFECT: 刷新会话最近访问时间
+    FAILURE: 运行时未就绪或会话 ID 非法时抛出异常
+    """
+    runtime = get_runtime()
+    return runtime.task_manager.has_unsaved_outputs_for_session(owner_session_id)
+
+
+def mark_task_saved(task_id: TaskId, owner_session_id: str) -> None:
+    """
+    INTENT: 将成功任务标记为已保存。
+    INPUT:
+        - task_id: 任务 ID
+        - owner_session_id: 当前页面会话 ID
+    OUTPUT: None
+    SIDE EFFECT: 更新任务保存状态与会话最近访问时间
+    FAILURE: 运行时未就绪或输入非法时抛出异常
+    """
+    runtime = get_runtime()
+    runtime.task_manager.mark_task_saved(task_id, owner_session_id=owner_session_id)
+
+
+def mark_all_tasks_saved(owner_session_id: str) -> int:
+    """
+    INTENT: 将当前页面会话下所有成功任务标记为已保存。
+    INPUT: owner_session_id - 当前页面会话 ID
+    OUTPUT: int
+    SIDE EFFECT: 更新多个任务保存状态与会话最近访问时间
+    FAILURE: 运行时未就绪或输入非法时抛出异常
+    """
+    runtime = get_runtime()
+    return runtime.task_manager.mark_all_tasks_saved(owner_session_id=owner_session_id)
+
+
 def get_task_metrics() -> TaskManagerMetricsSnapshot:
     """
     INTENT: 向 UI 暴露当前任务管理器的运行指标。
@@ -133,9 +195,14 @@ __all__ = [
     "TaskSubmissionError",
     "begin_shutdown",
     "get_task_metrics",
+    "has_unsaved_outputs_for_session",
     "get_ui_context",
     "initialize_runtime",
     "list_tasks",
+    "list_tasks_for_session",
+    "mark_all_tasks_saved",
+    "mark_task_saved",
     "prepare_reference_image",
     "submit_generation_task",
+    "touch_session",
 ]

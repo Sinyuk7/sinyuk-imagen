@@ -223,6 +223,7 @@ class TaskRuntime:
             now=self._utcnow(),
             running_timeout_seconds=self._settings.running_timeout_seconds,
             task_ttl_seconds=self._settings.task_ttl_seconds,
+            session_ttl_seconds=self._settings.session_ttl_seconds,
         )
         if cleanup.paths_to_cleanup:
             self._artifact_store.cleanup_paths(cleanup.paths_to_cleanup)

@@ -19,6 +19,7 @@ class ControlsPanel(BaseComponent):
             "🎨 Generate",
             variant="primary",
             size="lg",
+            elem_id="generate-button",
         )
 
     def get_button(self) -> gr.Button:

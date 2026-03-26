@@ -178,8 +178,48 @@ def finish_success(
     record.elapsed_seconds = elapsed_seconds(record, now)
     record.error = result.error
     record.error_code = None
+    record.saved_at = None
     record.status = TaskStatus.SUCCEEDED if result.success else TaskStatus.FAILED
     return []
+
+
+def mark_task_saved(
+    tasks: dict[str, TaskRecord],
+    task_id: str,
+    *,
+    owner_session_id: str,
+    now: datetime,
+    ) -> None:
+    """Mark a successful task bundle as explicitly saved by its owning session."""
+    record = tasks.get(task_id)
+    if record is None:
+        raise ValueError("Task not found.")
+    if record.owner_session_id != owner_session_id:
+        raise ValueError("Task does not belong to the active page session.")
+    if record.status != TaskStatus.SUCCEEDED or record.result is None or not record.result.success:
+        raise ValueError("Only successful tasks can be marked as saved.")
+    if record.saved_at is None:
+        record.saved_at = now
+
+
+def mark_all_tasks_saved(
+    tasks: dict[str, TaskRecord],
+    *,
+    owner_session_id: str,
+    now: datetime,
+) -> int:
+    """Mark every successful unsaved task bundle for one session as saved."""
+    updated = 0
+    for record in tasks.values():
+        if record.owner_session_id != owner_session_id:
+            continue
+        if record.status != TaskStatus.SUCCEEDED or record.result is None or not record.result.success:
+            continue
+        if record.saved_at is not None:
+            continue
+        record.saved_at = now
+        updated += 1
+    return updated
 
 
 def fail_pending_for_shutdown(

@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
+from html import escape
+from typing import List, Optional
 
 from core.schemas import (
     BrowserTaskState,
@@ -19,18 +20,135 @@ from core.schemas import (
     TaskSnapshot,
     TaskStatus,
 )
-
-STATUS_EMOJI = {
-    TaskStatus.QUEUED: "⏳",
-    TaskStatus.PREPARING: "🔧",
-    TaskStatus.RUNNING: "🔄",
-    TaskStatus.SUCCEEDED: "✅",
-    TaskStatus.FAILED: "❌",
-    TaskStatus.TIMED_OUT: "⏱️",
-}
+from ui.generation._internal.status_formatter import explain_error
 from ui.generation import OutputPresenter, OutputViewModel
 
-TaskChoice = Tuple[str, str]
+TASK_HISTORY_STYLE = """
+<style>
+#task-history-list .task-history-shell,
+#task-history-list .task-history-empty {
+  display: grid;
+  gap: 0.65rem;
+}
+#task-history-list .task-history-title {
+  font-weight: 700;
+  color: var(--body-text-color);
+}
+#task-history-list .task-history-hint {
+  color: var(--body-text-color-subdued, var(--neutral-500));
+  font-size: 0.92rem;
+}
+#task-history-list .task-history-row {
+  position: relative;
+  width: 100%;
+  display: grid;
+  gap: 0.34rem;
+  text-align: left;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--block-border-color, var(--neutral-200));
+  background: var(--background-fill-secondary, var(--neutral-50));
+  color: var(--body-text-color);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+#task-history-list .task-history-row::before {
+  content: "";
+  position: absolute;
+  left: 0.38rem;
+  top: 0.6rem;
+  bottom: 0.6rem;
+  width: 3px;
+  border-radius: 999px;
+  background: transparent;
+}
+#task-history-list .task-history-row:hover {
+  border-color: var(--primary-300);
+  background: color-mix(in srgb, var(--background-fill-secondary, white) 78%, var(--primary-100) 22%);
+}
+#task-history-list .task-history-row.is-selected {
+  border-color: var(--primary-500);
+  background: color-mix(in srgb, var(--background-fill-secondary, white) 68%, var(--primary-100) 32%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-500) 35%, transparent 65%);
+}
+#task-history-list .task-history-row.is-selected::before {
+  background: var(--primary-500);
+}
+#task-history-list .task-history-row.is-selected:hover {
+  border-color: var(--primary-500);
+  background: color-mix(in srgb, var(--background-fill-secondary, white) 68%, var(--primary-100) 32%);
+}
+#task-history-list .task-row-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+#task-history-list .task-row-status {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--body-text-color-subdued, var(--neutral-500));
+}
+#task-history-list .task-row-status.status-succeeded {
+  color: var(--color-green-700, #166534);
+}
+#task-history-list .task-row-status.status-failed {
+  color: var(--color-red-700, #9f1239);
+}
+#task-history-list .task-row-status.status-timed-out {
+  color: var(--color-amber-700, #b45309);
+}
+#task-history-list .task-row-status.status-running,
+#task-history-list .task-row-status.status-preparing {
+  color: var(--primary-700, var(--primary-500));
+}
+#task-history-list .task-row-prompt {
+  font-weight: 600;
+  line-height: 1.35;
+}
+#task-history-list .task-row-message {
+  font-size: 0.9rem;
+  line-height: 1.42;
+  color: var(--body-text-color-subdued, var(--neutral-500));
+}
+#task-history-list .task-row-message.message-succeeded {
+  color: var(--color-green-700, #166534);
+}
+#task-history-list .task-row-message.message-failed {
+  color: var(--color-red-700, #9f1239);
+}
+#task-history-list .task-row-message.message-timed-out {
+  color: var(--color-amber-700, #b45309);
+}
+#task-history-list .task-row-message.message-running {
+  color: var(--primary-700, var(--primary-500));
+}
+#task-history-list .task-row-meta {
+  color: var(--body-text-color-subdued, var(--neutral-500));
+  font-size: 0.88rem;
+}
+#task-history-list .task-row-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+#task-history-list .task-row-badge.unsaved {
+  color: var(--color-red-700, #9f1239);
+  background: color-mix(in srgb, white 75%, var(--color-red-200, #fecdd3) 25%);
+}
+#task-history-list .task-row-badge.saved {
+  color: var(--color-green-700, #166534);
+  background: color-mix(in srgb, white 72%, var(--color-green-200, #bbf7d0) 28%);
+}
+</style>
+"""
 
 
 @dataclass
@@ -41,7 +159,7 @@ class TaskDashboardViewModel:
     """
 
     browser_state: BrowserTaskState = field(default_factory=BrowserTaskState)
-    task_choices: List[TaskChoice] = field(default_factory=list)
+    task_list_html: str = ""
     selected_task_id: Optional[str] = None
     detail_view_model: OutputViewModel = field(default_factory=OutputViewModel)
     refresh_interval_seconds: Optional[float] = None
@@ -66,9 +184,7 @@ class TaskDashboardPresenter:
         metrics_snapshot: TaskManagerMetricsSnapshot,
     ) -> TaskDashboardViewModel:
         snapshot_map = {snapshot.task_id: snapshot for snapshot in snapshots}
-        normalized_ids = [
-            task_id for task_id in browser_state.task_ids if task_id in snapshot_map
-        ]
+        normalized_ids = [snapshot.task_id for snapshot in snapshots]
         selected_task_id = browser_state.selected_task_id
         if selected_task_id not in snapshot_map:
             selected_task_id = normalized_ids[0] if normalized_ids else None
@@ -79,13 +195,6 @@ class TaskDashboardPresenter:
         detail_view_model = TaskDashboardPresenter._build_detail_view_model(
             selected_snapshot
         )
-        task_choices = [
-            (
-                TaskDashboardPresenter._build_task_choice_label(snapshot),
-                snapshot.task_id,
-            )
-            for snapshot in snapshots
-        ]
         refresh_interval = TaskDashboardPresenter._build_refresh_interval(snapshots)
 
         return TaskDashboardViewModel(
@@ -93,7 +202,10 @@ class TaskDashboardPresenter:
                 task_ids=normalized_ids,
                 selected_task_id=selected_task_id,
             ),
-            task_choices=task_choices,
+            task_list_html=TaskDashboardPresenter._build_task_list_html(
+                snapshots,
+                selected_task_id=selected_task_id,
+            ),
             selected_task_id=selected_task_id,
             detail_view_model=detail_view_model,
             refresh_interval_seconds=refresh_interval,
@@ -142,9 +254,17 @@ class TaskDashboardPresenter:
         SIDE EFFECT: None
         FAILURE: Returns fallback label with "unknown" values
         
-        Format: ✅ A beautiful sunset ov... | FLUX.1 | 3m
+        Format: ✅ [UNSAVED] A beautiful sunset... | FLUX.1 | 3m
         """
-        emoji = STATUS_EMOJI.get(snapshot.status, "❓")
+        emoji = {
+            TaskStatus.QUEUED: "⏳",
+            TaskStatus.PREPARING: "🔧",
+            TaskStatus.RUNNING: "🔄",
+            TaskStatus.SUCCEEDED: "✅",
+            TaskStatus.FAILED: "❌",
+            TaskStatus.TIMED_OUT: "⏱️",
+        }.get(snapshot.status, "❓")
+        saved_marker = TaskDashboardPresenter._build_saved_state_marker(snapshot)
         
         # Fixed prompt length (20 chars, padded/truncated)
         prompt = snapshot.prompt_preview or "(empty)"
@@ -160,8 +280,119 @@ class TaskDashboardPresenter:
             model = model[:11] + "…"
         
         time_str = TaskDashboardPresenter._format_relative_time_short(snapshot.submitted_at)
-        
+
+        if saved_marker:
+            return f"{emoji} [{saved_marker}] {prompt} | {model} | {time_str}"
         return f"{emoji} {prompt} | {model} | {time_str}"
+
+    @staticmethod
+    def _build_saved_state_marker(snapshot: TaskSnapshot) -> str:
+        """Return the compact saved-state marker used in task-row labels."""
+        if snapshot.status != TaskStatus.SUCCEEDED or snapshot.result is None or not snapshot.result.success:
+            return ""
+        return "Saved" if snapshot.is_saved else "UNSAVED"
+
+    @staticmethod
+    def _build_task_list_html(
+        snapshots: List[TaskSnapshot],
+        *,
+        selected_task_id: str | None,
+    ) -> str:
+        """Build the custom HTML task list used by the right-side session inbox."""
+        if not snapshots:
+            return (
+                TASK_HISTORY_STYLE
+                + '<div class="task-history-empty">'
+                '<div class="task-history-title">Task History</div>'
+                '<div class="task-history-hint">No tasks yet in this session. Submit your first generation to see it here.</div>'
+                "</div>"
+            )
+
+        rows = [
+            TaskDashboardPresenter._build_task_row_html(
+                snapshot,
+                selected=(snapshot.task_id == selected_task_id),
+            )
+            for snapshot in snapshots
+        ]
+        return (
+            TASK_HISTORY_STYLE
+            + '<div class="task-history-shell">'
+            '<div class="task-history-title">Task History</div>'
+            '<div class="task-history-hint">Newest first. Click a row to inspect details.</div>'
+            f'{"".join(rows)}'
+            "</div>"
+        )
+
+    @staticmethod
+    def _build_task_row_html(snapshot: TaskSnapshot, *, selected: bool) -> str:
+        """Build one clickable HTML row for the custom task list."""
+        prompt = escape(snapshot.prompt_preview or "(empty prompt)")
+        status_text = escape(snapshot.status.value.replace("_", " ").title())
+        status_slug = escape(snapshot.status.value.replace("_", "-"))
+        model = escape(snapshot.model or "unknown")
+        provider = escape(snapshot.provider or "unknown")
+        time_str = escape(TaskDashboardPresenter._format_relative_time_short(snapshot.submitted_at))
+        message_text, message_class = TaskDashboardPresenter._build_task_row_message(snapshot)
+        saved_marker = TaskDashboardPresenter._build_saved_state_marker(snapshot)
+        saved_badge = ""
+        if saved_marker:
+            badge_class = "saved" if snapshot.is_saved else "unsaved"
+            saved_badge = (
+                f'<span class="task-row-badge {badge_class}">{escape(saved_marker)}</span>'
+            )
+
+        selected_attr = "true" if selected else "false"
+        selected_class = " is-selected" if selected else ""
+        return (
+            f'<button type="button" class="task-history-row{selected_class}" '
+            f'data-task-id="{escape(snapshot.task_id)}" '
+            f'data-selected="{selected_attr}" '
+            f'data-status="{status_text}">'
+            '<span class="task-row-topline">'
+            f'<span class="task-row-status status-{status_slug}">{status_text}</span>'
+            f'{saved_badge}'
+            "</span>"
+            f'<span class="task-row-prompt">{prompt}</span>'
+            f'<span class="task-row-message {escape(message_class)}">{escape(message_text)}</span>'
+            f'<span class="task-row-meta">{provider} · {model} · {time_str}</span>'
+            "</button>"
+        )
+
+    @staticmethod
+    def _build_task_row_message(snapshot: TaskSnapshot) -> tuple[str, str]:
+        """Build the short secondary message shown inside a task row."""
+        if snapshot.status == TaskStatus.SUCCEEDED:
+            if snapshot.is_saved:
+                return ("Marked saved for this session.", "message-succeeded")
+            return (
+                "Images are ready in this session. Download them before leaving.",
+                "message-succeeded",
+            )
+        if snapshot.status == TaskStatus.FAILED:
+            return (
+                explain_error(
+                    snapshot.error or "Task failed.",
+                    snapshot.error_code,
+                ),
+                "message-failed",
+            )
+        if snapshot.status == TaskStatus.TIMED_OUT:
+            return (
+                explain_error(
+                    snapshot.error or "Task timed out.",
+                    snapshot.error_code,
+                ),
+                "message-timed-out",
+            )
+        if snapshot.status == TaskStatus.RUNNING:
+            return (
+                "Generating now. This task is still safe in the current session.",
+                "message-running",
+            )
+        if snapshot.status == TaskStatus.PREPARING:
+            return ("Preparing files for the provider request.", "message-running")
+        return ("Waiting for an available worker slot.", "")
 
     @staticmethod
     def _format_relative_time_short(dt: Optional[datetime]) -> str:
@@ -206,6 +437,8 @@ class TaskDashboardPresenter:
             return 2.0
         if any(not snapshot.is_terminal for snapshot in snapshots):
             return 5.0
+        if snapshots:
+            return 60.0
         return None
 
     @staticmethod
@@ -245,5 +478,4 @@ class TaskDashboardPresenter:
 __all__ = [
     "TaskDashboardViewModel",
     "TaskDashboardPresenter",
-    "TaskChoice",
 ]

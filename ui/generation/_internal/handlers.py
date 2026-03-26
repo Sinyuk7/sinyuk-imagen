@@ -26,6 +26,7 @@ from core.schemas import (
     TaskErrorCode,
     UIContext,
 )
+from ui._app_state import ensure_page_session_id
 from ui.dashboard.contracts import DashboardResponse
 from ui.generation.contracts import (
     DashboardHandlerPort,
@@ -117,6 +118,7 @@ class GenerateHandler:
         reference_image_path: str | None,
         divisible_by: int,
         browser_state_value: BrowserTaskState | BrowserTaskStateValue | object,
+        page_session_id_value: str | None | object,
         state_machine: "StateMachine",
     ) -> DashboardResponse:
         """
@@ -127,6 +129,7 @@ class GenerateHandler:
         FAILURE: 返回错误响应
         """
         browser_state = BrowserTaskState.from_value(browser_state_value)
+        page_session_id = ensure_page_session_id(page_session_id_value)
         state_machine.context.set_token(provider_name, provider_token_val or "")
 
         try:
@@ -157,10 +160,14 @@ class GenerateHandler:
                 prompt_text[:50],
                 debug_mode,
             )
-            task_id = core_api.submit_generation_task(task_config)
+            task_id = core_api.submit_generation_task(
+                task_config,
+                owner_session_id=page_session_id,
+            )
             next_browser_state = browser_state.with_task(task_id)
             return self.dashboard_handler.hydrate_dashboard(
                 next_browser_state.to_value(),
+                page_session_id,
                 state_machine,
             )
 
@@ -174,6 +181,7 @@ class GenerateHandler:
 
             return self.dashboard_handler.build_submission_error_response(
                 browser_state_value=browser_state.to_value(),
+                page_session_id_value=page_session_id,
                 state_machine=state_machine,
                 error_code=error_code,
                 error_message=str(exc),

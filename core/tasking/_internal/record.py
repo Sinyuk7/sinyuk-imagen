@@ -23,6 +23,7 @@ class TaskRecord:
     error: str | None = None
     error_code: TaskErrorCode | None = None
     result: GenerationResult | None = None
+    saved_at: datetime | None = None
     diagnostics: ProviderDiagnostics | None = None
     prepared_reference_image_path: str | None = None
     related_files: list[str] = field(default_factory=list)

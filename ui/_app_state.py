@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import cast
 
 import gradio as gr # pyright: ignore[reportMissingImports]
@@ -41,18 +42,23 @@ def build_prepared_reference_state() -> gr.State:
     return gr.State(value=None)
 
 
+def build_page_session_id_state() -> gr.State:
+    """Create the transient page-session id state holder."""
+    return gr.State(value=None)
+
+
+def ensure_page_session_id(value: str | None | object) -> str:
+    """Return the existing page session id or create a new transient one."""
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return uuid.uuid4().hex
+
+
 def build_browser_task_state_block() -> Block:
-    """Create the browser-backed task selection state."""
-    browser_state_factory = getattr(gr, "BrowserState", None)
-    if browser_state_factory is None:
-        return cast(
-            Block,
-            gr.State(value={"task_ids": [], "selected_task_id": None}),
-        )
-    # Gradio 6.x uses 'default_value' for BrowserState
+    """Create the page-owned task selection state."""
     return cast(
         Block,
-        browser_state_factory(default_value={"task_ids": [], "selected_task_id": None}),
+        gr.State(value={"task_ids": [], "selected_task_id": None}),
     )
 
 

@@ -11,7 +11,12 @@ from ui.generation._internal.slider_adapter import (
     coerce_gallery_item,
     coerce_slider_image,
 )
-from ui.generation._internal.status_formatter import build_error_status, build_success_status
+from ui.generation._internal.status_formatter import (
+    build_empty_status,
+    build_error_status,
+    build_info_status,
+    build_success_status,
+)
 from ui.generation._internal.view_model import OutputViewModel, SliderValue
 
 
@@ -31,7 +36,11 @@ class OutputPresenter:
     @staticmethod
     def build_empty_result() -> OutputViewModel:
         """Build the empty-state view model for task details."""
-        return OutputViewModel(status_text="Select a task below to inspect its result.")
+        return OutputViewModel(
+            status_text=build_empty_status(
+                "Select a task below to inspect its result.",
+            )
+        )
 
     @staticmethod
     def build_generation_success(result: GenerationResult) -> OutputViewModel:
@@ -61,21 +70,43 @@ class OutputPresenter:
     def build_debug_result(result: GenerationResult) -> OutputViewModel:
         """Build a UI view model for debug-mode output."""
         return OutputViewModel(
-            status_text="Dry run only. Request not sent.",
+            status_text=build_info_status(
+                tone="warning",
+                eyebrow="Debug mode",
+                title="Dry run only",
+                summary="Request not sent. Review the payload below before you run the real task.",
+                detail_lines=[f"{result.provider} · {result.model}"],
+            ),
             logcat_markdown=render_logcat(result=result, diagnostics=result.diagnostics),
         )
 
     @staticmethod
     def build_task_pending(snapshot: TaskSnapshot) -> OutputViewModel:
         """Build a pending/running task detail model."""
-        status_line = {
-            TaskStatus.QUEUED.value: "**Queued**  \nWaiting for an available worker.",
-            TaskStatus.PREPARING.value: "**Preparing**  \nCopying inputs and normalizing task assets.",
-            TaskStatus.RUNNING.value: "**Running**  \nImage generation is in progress.",
-        }.get(snapshot.status.value, f"**{str(snapshot.status.value).title()}**")
-        detail_line = f"`{snapshot.provider}` | `{snapshot.model}`"
+        title, summary = {
+            TaskStatus.QUEUED.value: (
+                "Queued",
+                "Waiting for an available worker slot.",
+            ),
+            TaskStatus.PREPARING.value: (
+                "Preparing",
+                "Copying inputs and normalizing task assets.",
+            ),
+            TaskStatus.RUNNING.value: (
+                "Running",
+                "Image generation is in progress. This task is still safe in the current session.",
+            ),
+        }.get(
+            snapshot.status.value,
+            (str(snapshot.status.value).title(), "Task is still in progress."),
+        )
         return OutputViewModel(
-            status_text="  \n".join([status_line, detail_line]),
+            status_text=build_info_status(
+                eyebrow="In progress",
+                title=title,
+                summary=summary,
+                detail_lines=[f"{snapshot.provider} · {snapshot.model}"],
+            ),
             slider_value=build_slider_value(
                 before_image=snapshot.prepared_reference_image_path,
                 after_image=None,
@@ -95,7 +126,11 @@ class OutputPresenter:
                 error_message=error_message,
                 error_code=error_code,
             ),
-            logcat_markdown=render_logcat(result=result, diagnostics=diagnostics),
+            logcat_markdown=render_logcat(
+                result=result,
+                diagnostics=diagnostics,
+                error_message=error_message,
+            ),
         )
 
     @staticmethod
